@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logistic Growth Model · S-Curve Simulation</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --ink: #2c2c2a;
+    --ink-2: #5f5e5a;
+    --ink-3: #888780;
+    --line: rgba(0, 0, 0, 0.12);
+    --line-soft: rgba(0, 0, 0, 0.07);
+    --blue: #378add;
+    --blue-d: #185fa5;
+    --teal: #1d9e75;
+    --coral: #d85a30;
+    --amber: #ba7517;
+    --purple: #7f77dd;
+    --red: #e24b4a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    padding: 22px 22px 0;
+  }
+  .wrap { max-width: 1340px; margin: 0 auto; }
+
+  header { margin-bottom: 16px; }
+  header .head-left { min-width: 0; }
+  header h1 {
+    font-size: 21px; font-weight: 500; margin: 0 0 6px;
+    letter-spacing: -0.2px;
+  }
+  header .formula {
+    font-family: "Latin Modern Math", "Cambria Math", Cambria, "Times New Roman", Georgia, serif;
+    font-size: 17px; color: var(--ink-2); line-height: 1.5;
+    letter-spacing: 0.01em;
+  }
+  header .formula .v { font-style: italic; }
+  header .formula .op { font-style: normal; padding: 0 0.12em; }
+  header .formula .num { font-style: normal; }
+  header .formula .frac {
+    display: inline-block; vertical-align: middle;
+    text-align: center; font-size: 0.82em; line-height: 1.15;
+    margin: 0 0.18em; position: relative; top: -0.06em;
+  }
+  header .formula .frac .den {
+    border-top: 1px solid currentColor; padding-top: 0.08em; display: block;
+  }
+  header .formula .paren { font-style: normal; font-size: 1.12em; }
+  header .formula .hl { color: var(--blue-d); font-weight: 500; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: stretch;   /* 三栏等高 */
+  }
+  @media (max-width: 1180px) {
+    .layout { grid-template-columns: minmax(0, 1fr) 300px; }
+    .layout > .panel:nth-child(2) { grid-column: 1; }
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .layout > .panel { grid-column: 1; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 0.5px solid var(--line-soft);
+    border-radius: 12px;
+    display: flex; flex-direction: column;   /* 让内容区撑满剩余高度 */
+    min-width: 0;
+  }
+  .panel-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 12px 16px 8px;
+    gap: 10px;
+    flex: none;
+  }
+  .panel-head h2 { font-size: 14px; font-weight: 500; margin: 0; }
+  .panel-head .hint { font-size: 12px; color: var(--ink-3); }
+
+  .stage-wrap, .chart-wrap { padding: 0 12px 12px; flex: 1 1 auto; display: flex; }
+  canvas, svg { display: block; }
+  #stage, #scurve {
+    width: 100%; border-radius: 8px; background: #fcfcfa;
+    border: 0.5px solid var(--line-soft);
+  }
+  #stage { cursor: crosshair; }
+
+  .controls {
+    display: flex; flex-direction: column; gap: 11px; padding: 2px 16px 14px;
+    flex: 1 1 auto;
+  }
+  .controls .btns { margin-top: auto; }   /* 按钮组贴底 */
+
+  .ctrl { }
+  .ctrl-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
+  .ctrl-top label { font-size: 13px; font-weight: 500; }
+  .ctrl-top .val { font-family: "SFMono-Regular", Consolas, monospace; font-size: 13px; color: var(--blue-d); }
+  .ctrl-sub { font-size: 11.5px; color: var(--ink-3); margin-top: 4px; }
+  input[type="range"] { width: 100%; }
+
+  .btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 2px; }
+  button.act {
+    font: inherit; font-size: 13px; font-weight: 500;
+    padding: 8px 6px; border-radius: 8px; cursor: pointer;
+    background: #fff; color: var(--ink);
+    border: 0.5px solid var(--line);
+    transition: background .12s, border-color .12s;
+  }
+  button.act:hover:not(:disabled) { background: #f4f4f1; border-color: var(--line); }
+  button.act:disabled { opacity: .35; cursor: not-allowed; }
+  button.act.primary { color: var(--blue-d); border-color: rgba(24,95,165,.45); }
+  button.act.primary:hover:not(:disabled) { background: #eef5fd; }
+  button.act.danger { color: #a32d2d; border-color: rgba(163,45,45,.4); }
+  button.act.danger:hover:not(:disabled) { background: #fcebeb; }
+
+  .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 11px; }
+  .metric { background: #f4f4f1; border-radius: 7px; padding: 7px 8px; }
+  .metric .k { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .metric .v { font-size: 16px; font-weight: 500; line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .metric .v small { font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 1px; }
+
+  /* 阶段说明已移到实时参数栏，这里不再使用 */
+
+  .timeline-dock {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 50;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 0.5px solid var(--line);
+    padding: 10px 22px 12px;
+  }
+  .timeline-dock .dock-inner { max-width: 1340px; margin: 0 auto; }
+  .dock-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; margin-bottom: 2px;
+  }
+  .dock-head h2 { font-size: 13px; font-weight: 500; margin: 0; }
+  .tl-readout {
+    display: flex; align-items: baseline; gap: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-readout .hint { font-size: 11.5px; color: var(--ink-3); }
+  .tl-readout .big {
+    font-size: 15px; font-weight: 500; color: var(--blue-d);
+    font-family: "SFMono-Regular", Consolas, monospace;
+  }
+  #timeline { width: 100%; background: transparent; cursor: grab; touch-action: none; }
+  #timeline.dragging { cursor: grabbing; }
+  .tl-labels {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--ink-3); margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-foot {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+    margin-top: 8px; font-size: 11.5px; color: var(--ink-2);
+  }
+  .tl-foot span { display: flex; align-items: center; gap: 5px; }
+  .chip { width: 12px; height: 3px; border-radius: 2px; flex: none; }
+
+  /* 倍速控制 */
+  .speed-box {
+    display: flex; align-items: center; gap: 6px;
+    margin-left: auto; font-size: 11.5px; color: var(--ink-2);
+  }
+  .speed-box .lab { color: var(--ink-3); }
+  .speed-btns { display: flex; gap: 3px; }
+  .speed-btns button {
+    font: inherit; font-size: 11.5px; font-weight: 500;
+    padding: 3px 9px; border-radius: 5px; cursor: pointer;
+    background: #fff; color: var(--ink-2);
+    border: 0.5px solid var(--line);
+    font-variant-numeric: tabular-nums;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .speed-btns button:hover { background: #f4f4f1; }
+  .speed-btns button.on {
+    background: #eef5fd; color: var(--blue-d);
+    border-color: rgba(24,95,165,.5);
+  }
+
+  /* 实时参数条：稳态页面元素（不随底栏固定），位于可视化下方 */
+  .metrics-bar {
+    margin-top: 16px;
+    background: var(--panel);
+    border: 0.5px solid var(--line-soft);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 1.9fr);
+    gap: 12px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .metrics-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  .mb-item { min-width: 0; }
+  .mb-item .k {
+    font-size: 11px; color: var(--ink-3); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .mb-item .v {
+    font-size: 18px; font-weight: 500; line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+  }
+  .mb-item .v small { font-size: 11px; font-weight: 400; color: var(--ink-3); }
+
+  /* 阶段项：单独一列，显示阶段名 + 解释（不再用 span 跨列） */
+  .mb-phase .k { white-space: normal; overflow: visible; text-overflow: clip; }
+  .mb-phase .ph-name { color: var(--ink-2); font-weight: 500; }
+  .mb-phase .ph-desc {
+    font-size: 11.5px; font-weight: 400; line-height: 1.4;
+    color: var(--ink-3); margin-top: 2px;
+  }
+
+  /* S-curve 图例 */
+  .curve-legend {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+    padding: 0 16px 12px; font-size: 11.5px; color: var(--ink-2);
+    flex: none;
+  }
+  .curve-legend span { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+
+  .dock-spacer { height: 176px; }
+
+  .mini-btn {
+    font: inherit; font-size: 12px; font-weight: 500;
+    padding: 4px 10px; border-radius: 6px; cursor: pointer;
+    background: #fff; color: var(--ink-2);
+    border: 0.5px solid var(--line);
+  }
+  .mini-btn:hover { background: #f4f4f1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="head-left">
+      <h1>Logistic Growth Model · S-Curve Simulation</h1>
+      <div class="formula">
+        <span class="frac"><span class="num">d<i>N</i></span><span class="den num">d<i>t</i></span></span>
+        <span class="op">=</span>
+        <span class="v">r</span><span class="v">N</span>
+        <span class="paren">(</span><span class="frac"><span class="num"><i>K</i> − <i>N</i></span><span class="den num"><i>K</i></span></span><span class="paren">)</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 >Population</h2>
+        <span class="hint" >One dot = one individual · dots roam the space</span>
+      </div>
+      <div class="stage-wrap">
+        <canvas id="stage"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 >S-curve</h2>
+        <span class="hint" >x-axis: t · y-axis: N</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="scurve"></canvas>
+      </div>
+      <div class="curve-legend">
+        <span><i class="chip" style="background: #378add"></i><span >Simulated range</span></span>
+        <span><i class="chip" style="background: #1d9e75"></i><span >Current moment</span></span>
+        <span><i class="chip" style="background: #ba7517"></i><span >Peak growth point</span></span>
+        <span><i class="chip" style="background: #d85a30"></i><span >Carrying capacity K</span></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 >Controls</h2>
+        <span class="hint" id="statusTag">Not started</span>
+      </div>
+      <div class="controls">
+
+        <div class="ctrl">
+          <div class="ctrl-top">
+            <label for="kSlider"><span >Carrying capacity</span> <i>K</i></label>
+            <span class="val" id="kVal">100</span>
+          </div>
+          <input id="kSlider" type="range" min="20" max="400" step="1" value="100">
+          <div class="ctrl-sub" >Population ceiling the environment can sustain</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="ctrl-top">
+            <label for="rSlider"><span >Intrinsic growth rate</span> <i>r</i></label>
+            <span class="val" id="rVal">0.10</span>
+          </div>
+          <input id="rSlider" type="range" min="0.01" max="0.50" step="0.005" value="0.10">
+          <div class="ctrl-sub" >Max per-capita growth rate with unlimited resources</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="ctrl-top">
+            <label for="n0Slider"><span>Initial population</span> <i>N</i><sub>0</sub></label>
+            <span class="val" id="n0Val">5</span>
+          </div>
+          <input id="n0Slider" type="range" min="1" max="100" step="1" value="5">
+          <div class="ctrl-sub">Number of individuals at t = 0</div>
+        </div>
+
+        <div class="btns">
+          <button class="act primary" id="btnStart" >Start</button>
+          <button class="act" id="btnPause" >Pause</button>
+          <button class="act danger" id="btnReset" >Reset</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div class="metrics-bar">
+    <div class="mb-item">
+      <div class="k" >Current N</div>
+      <div class="v" id="mNval">0</div>
+    </div>
+    <div class="mb-item">
+      <div class="k" >Remaining capacity K−N</div>
+      <div class="v" id="mRemval">0</div>
+    </div>
+    <div class="mb-item">
+      <div class="k" >Instantaneous rate dN/dt</div>
+      <div class="v" id="mdNval">0.00</div>
+    </div>
+    <div class="mb-item">
+      <div class="k" >Environmental resistance (K−N)/K</div>
+      <div class="v" id="mResval">100<small>%</small></div>
+    </div>
+    <div class="mb-item">
+      <div class="k" >Simulated time t</div>
+      <div class="v" id="mtval">0.0</div>
+    </div>
+    <div class="mb-item mb-phase">
+      <div class="k"><span >Growth phase</span> · <span class="ph-name" id="mbPhase">—</span></div>
+      <div class="v ph-desc" id="phaseText">Start the simulation to see the current growth phase</div>
+    </div>
+  </div>
+
+  <div class="dock-spacer"></div>
+</div>
+
+<div class="timeline-dock">
+  <div class="dock-inner">
+    <div class="dock-head">
+      <h2 >Timeline · drag to jump to any moment</h2>
+      <div class="tl-readout">
+        <span class="hint" id="tlHint">0 → plateau</span>
+        <span class="big" id="tlNow">t = 0.0</span>
+      </div>
+    </div>
+    <canvas id="timeline"></canvas>
+    <div class="tl-labels">
+      <span id="tlStart">t = 0</span>
+      <span id="tlSpan"></span>
+      <span id="tlEnd"></span>
+    </div>
+    <div class="tl-foot">
+      <div class="speed-box">
+        <span class="lab" >Speed</span>
+        <div class="speed-btns" id="speedBtns">
+          <button data-sp="0.5">0.5×</button>
+          <button data-sp="1" class="on">1×</button>
+          <button data-sp="2">2×</button>
+          <button data-sp="4">4×</button>
+        </div>
+      </div>
+      <button class="mini-btn" id="btnRewind" >Back to start</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var CSS = {
+    blue: "#378add", blueD: "#185fa5", teal: "#1d9e75",
+    coral: "#d85a30", amber: "#ba7517", purple: "#7f77dd",
+    idle: "#c9c8c2", ink: "#2c2c2a", ink3: "#888780",
+    line: "rgba(0,0,0,0.12)", lineSoft: "rgba(0,0,0,0.07)"
+  };
+
+  /* ---------- text helpers (timeline labels) ---------- */
+  function tlHintText(s, e) { return "plateau t=" + s + " \u2192 end t=" + e; }
+  function tlSpanText(max, half, st, end) {
+    return "span " + max + " \u00b7 peak growth t=" + half
+         + " \u00b7 plateau t=" + st + " \u00b7 end t=" + end;
+  }
+
+  /* ---------- state ---------- */
+  var K = 100, r = 0.10, N0 = 5;
+  var N = N0;
+  var tSim = 0;
+  var running = false;
+  var finished = false;
+  var lastFrame = 0;
+  var T_STABLE = 0;          // 曲线达到 98% K 的时刻（“趋于稳定”）
+  var carryFactor = 0.98;    // 用 98% K 定义稳定所需时间
+  var OVERSHOOT = 0.30;      // 稳定后继续运行的比例（再多跑 30% 时长）
+  var T_END = 0;             // 模拟真正的结束时刻 = T_STABLE · (1+OVERSHOOT)
+  var timelineTMax = 60;     // 时间轴总跨度（覆盖整个运行区间）
+  var speed = 1;             // 倍速
+  var history = [];          // {t, N}
+
+  /* ---------- dom ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $("stage"), sctx = stage.getContext("2d");
+  var scurve = $("scurve"), xctx = scurve.getContext("2d");
+  var timeline = $("timeline"), tctx = timeline.getContext("2d");
+
+  /* ---------- dots ---------- */
+  var dots = [];
+  var stageW = 0, stageH = 0;
+  var DOT_R = 4.2;
+
+  // 在区域内随机取一个点
+  function randPoint() {
+    var topEdge = 50 + DOT_R + 4;
+    var botEdge = stageH - 26 - DOT_R - 4;
+    return {
+      x: DOT_R + 4 + Math.random() * Math.max(1, stageW - 2 * DOT_R - 8),
+      y: topEdge + Math.random() * Math.max(1, botEdge - topEdge)
+    };
+  }
+
+  /* ---------- dots ----------
+     圆点数量 == 当前个体数 N（未占用的空间不画东西）。
+     每个个体在区域内自由游走；个体越多，空间越拥挤 —— 这正是
+     (K−N)/K 环境阻力项的直观对应物：可占用的“空位”变少了。
+  */
+  function makeDot() {
+    var p = randPoint();
+    return {
+      cx: p.x, cy: p.y,
+      vx: (Math.random() - 0.5) * 30,
+      vy: (Math.random() - 0.5) * 30,
+      ang: Math.random() * Math.PI * 2,   // 当前朝向
+      turn: (Math.random() - 0.5) * 1.6,  // 转向速率
+      sp: 0.7 + Math.random() * 0.7,      // 速度系数
+      age: 0,                             // 已存在时长（用于淡入）
+      hue: Math.random()                  // 个体色相微差
+    };
+  }
+
+  // 找一个离其他个体尽量远的出生位（避免出生就重叠）
+  function freeSlot() {
+    var best = null, bestD = -1;
+    for (var k = 0; k < 16; k++) {
+      var p = randPoint();
+      var minD = Infinity;
+      for (var j = 0; j < dots.length; j++) {
+        var dx = dots[j].cx - p.x, dy = dots[j].cy - p.y;
+        var dd = dx * dx + dy * dy;
+        if (dd < minD) minD = dd;
+      }
+      if (minD > bestD) { bestD = minD; best = p; }
+      if (bestD > 1200) break;
+    }
+    return best;
+  }
+
+  // 圆点数量 = round(N)：随模拟增长逐个“出生”，暂停/回溯时同步增减
+  function rebuildDots() {
+    var want = Math.max(0, Math.round(N));
+    while (dots.length < want) {
+      var slot = freeSlot();
+      var d = makeDot();
+      if (slot) { d.cx = slot.x; d.cy = slot.y; }
+      dots.push(d);
+    }
+    if (dots.length > want) dots.length = want;
+  }
+
+  /* ---------- geometry ---------- */
+  function fitCanvas(cv, ctx, h) {
+    var dpr = window.devicePixelRatio || 1;
+    // 固定定位的 dock 内元素用自身盒宽度；其余用父容器宽度
+    var w = cv.getBoundingClientRect().width || cv.parentNode.clientWidth || 800;
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    cv.style.height = h + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w: w, h: h };
+  }
+
+  var stageH = 300;
+  var xGeo = { w: 0, h: 300, padL: 54, padR: 16, padT: 16, padB: 28 };
+  var tGeo = { w: 0, h: 62, padL: 18, padR: 18, padT: 12, padB: 20 };
+
+  /* 让页面底部的占位高度始终等于固定 dock 的实际高度 */
+  function syncDockSpacer() {
+    var dock = document.querySelector(".timeline-dock");
+    var spacer = document.querySelector(".dock-spacer");
+    if (!dock || !spacer) return;
+    var h = Math.ceil(dock.getBoundingClientRect().height);
+    spacer.style.height = (h + 8) + "px";
+  }
+
+  function resizeAll() {
+    syncDockSpacer();
+    var s = fitCanvas(stage, sctx, stageH);
+    stageW = s.w; stageH = s.h;
+    var x = fitCanvas(scurve, xctx, xGeo.h);
+    xGeo.w = x.w; xGeo.h = x.h;
+    var tg = fitCanvas(timeline, tctx, tGeo.h);
+    tGeo.w = tg.w; tGeo.h = tg.h;
+    clampDots();
+    drawStage(0);
+    drawSCurve();
+    drawTimeline();
+  }
+
+  function clampDots() {
+    for (var i = 0; i < dots.length; i++) {
+      var d = dots[i];
+      if (d.cx < DOT_R) d.cx = DOT_R;
+      if (d.cx > stageW - DOT_R) d.cx = stageW - DOT_R;
+      if (d.cy < DOT_R) d.cy = DOT_R;
+      if (d.cy > stageH - DOT_R) d.cy = stageH - DOT_R;
+    }
+  }
+
+  /* ---------- math ---------- */
+  function logisticN(Nt, dt, capacity, rate) {
+    // 精确解，保证 N 不会越过 K
+    var denom = 1 + ((capacity - N0) / N0) * Math.exp(-rate * dt);
+    return capacity / denom;
+  }
+  function dNdt(Nt, capacity, rate) {
+    return rate * Nt * (capacity - Nt) / capacity;
+  }
+
+  function computeStableTime(capacity, rate) {
+    // 解 N(t) = carryFactor·K：
+    // K/(1+((K−N0)/N0)e^(−rt)) = cf·K  →  e^(−rt) = (1/cf − 1)·N0/(K−N0)
+    var ratio = (1 / carryFactor - 1) * (N0 / (capacity - N0));
+    var tau = -Math.log(ratio) / rate;
+    return tau > 0 ? tau : 1;
+  }
+
+  // 统一推导时间常量：稳定时刻 → 结束时刻（稳定后再跑一段）→ 时间轴总跨度
+  function syncTimeConstants() {
+    T_STABLE = computeStableTime(K, r);
+    T_END = T_STABLE * (1 + OVERSHOOT);
+    timelineTMax = Math.max(8, T_END * 1.02);
+  }
+
+  /* ---------- drawing: stage ---------- */
+  function drawStage(dt) {
+    var ctx = sctx, w = stageW, h = stageH;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#fcfcfa";
+    ctx.fillRect(0, 0, w, h);
+
+    // 极淡网格
+    ctx.strokeStyle = "rgba(0,0,0,0.035)";
+    ctx.lineWidth = 1;
+    for (var gx = 48; gx < w; gx += 48) {
+      ctx.beginPath(); ctx.moveTo(gx + .5, 0); ctx.lineTo(gx + .5, h); ctx.stroke();
+    }
+    for (var gy = 48; gy < h; gy += 48) {
+      ctx.beginPath(); ctx.moveTo(0, gy + .5); ctx.lineTo(w, gy + .5); ctx.stroke();
+    }
+
+    var topEdge = 50 + DOT_R + 3;
+    var botEdge = h - 30 - DOT_R - 3;
+    var m = DOT_R + 2;
+
+    // 环境阻力可视化：拥挤度越高，底色越偏暖（资源被瓜分殆尽）
+    var crowd = Math.max(0, Math.min(1, N / K));   // = 1 − (K−N)/K
+    if (crowd > 0.02) {
+      var g = ctx.createLinearGradient(0, topEdge, 0, botEdge);
+      var a = 0.055 * crowd * crowd;
+      g.addColorStop(0, "rgba(216,90,48," + a.toFixed(4) + ")");
+      g.addColorStop(1, "rgba(216,90,48," + (a * 0.35).toFixed(4) + ")");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 50, w, h - 50 - 24);
+    }
+
+    // 每个个体自由游走
+    for (var i = 0; i < dots.length; i++) {
+      var d = dots[i];
+      d.age += dt;
+
+      // 平滑转向 + 惯性，形成自然的“随机漫步”
+      d.turn += (Math.random() - 0.5) * 2.2 * dt;
+      d.turn = Math.max(-1.4, Math.min(1.4, d.turn));
+      d.ang += d.turn * dt * 1.5;
+
+      var speed = 34 * d.sp;
+      d.vx = Math.cos(d.ang) * speed;
+      d.vy = Math.sin(d.ang) * speed;
+
+      d.cx += d.vx * dt;
+      d.cy += d.vy * dt;
+
+      // 碰壁：反射朝向（不是简单掉头，保持游走自然）
+      if (d.cx < m) { d.cx = m; d.ang = Math.PI - d.ang; }
+      if (d.cx > w - m) { d.cx = w - m; d.ang = Math.PI - d.ang; }
+      if (d.cy < topEdge) { d.cy = topEdge; d.ang = -d.ang; }
+      if (d.cy > botEdge) { d.cy = botEdge; d.ang = -d.ang; }
+
+      // 个体间软排斥：拥挤时把它们推开，直观呈现“空间被占满”
+      if (dots.length > 1 && dots.length <= 420) {
+        var sepR = DOT_R * 2.6, sepR2 = sepR * sepR;
+        var nearest = null, nd = Infinity;
+        for (var j = 0; j < dots.length; j++) {
+          if (j === i) continue;
+          var ox = dots[j].cx - d.cx, oy = dots[j].cy - d.cy;
+          var od = ox * ox + oy * oy;
+          if (od < nd) { nd = od; if (od < sepR2 && od > 0.01) nearest = { dx: ox, dy: oy }; }
+        }
+        if (nearest) {
+          var L = Math.sqrt(nd);
+          if (L > 0.01) {
+            d.cx -= (nearest.dx / L) * Math.min(2.6, (sepR - L) * 0.5);
+            d.cy -= (nearest.dy / L) * Math.min(2.6, (sepR - L) * 0.5);
+            d.turn += (Math.random() - 0.5) * 1.4 * dt;
+          }
+        }
+      }
+
+      // 进度条区域不进入
+      if (d.cy > botEdge) d.cy = botEdge;
+
+      // 个体本身（新出生的做淡入）
+      var alpha = Math.min(1, d.age / 0.45);
+      var rad = DOT_R * (0.72 + 0.28 * Math.min(1, d.age / 0.45));
+      // 拥挤时颜色向暖色偏移，和背景呼应
+      var cr = Math.round(55 + (216 - 55) * crowd * crowd);
+      var cg = Math.round(138 + (90 - 138) * crowd * crowd);
+      var cb = Math.round(221 + (48 - 221) * crowd * crowd);
+      ctx.fillStyle = "rgba(" + cr + "," + cg + "," + cb + "," + alpha.toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.arc(d.cx, d.cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    /* ---- 顶部读数条 ---- */
+    ctx.fillStyle = "rgba(252,252,250,0.94)";
+    ctx.fillRect(0, 0, w, 50);
+    ctx.strokeStyle = "rgba(0,0,0,0.06)";
+    ctx.beginPath(); ctx.moveTo(0, 50.5); ctx.lineTo(w, 50.5); ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "500 14px -apple-system, 'Microsoft YaHei', sans-serif";
+    ctx.fillStyle = CSS.ink;
+    ctx.fillText("Population N = " + Math.round(N), 14, 24);
+
+    ctx.font = "12px -apple-system, 'Microsoft YaHei', sans-serif";
+    ctx.fillStyle = CSS.ink3;
+    ctx.fillText("K = " + Math.round(K) + "   ·   occupancy " + Math.round(N / K * 100) + "%", 14, 41);
+
+    // 右上角：环境阻力指示（解释为什么增长会停）
+    var remPct = Math.max(0, (K - N) / K);
+    ctx.textAlign = "right";
+    ctx.font = "12px -apple-system, 'Microsoft YaHei', sans-serif";
+    ctx.fillStyle = CSS.ink3;
+    ctx.fillText("Vacancies (K−N)/K", w - 14, 20);
+    ctx.font = "500 13px -apple-system, 'Microsoft YaHei', sans-serif";
+    ctx.fillStyle = remPct > 0.5 ? CSS.blueD : (remPct > 0.1 ? CSS.amber : CSS.coral);
+    ctx.fillText((remPct * 100).toFixed(0) + "%", w - 14, 39);
+  }
+
+  /* ---------- drawing: s-curve ----------
+     Only the part that has already happened is drawn (no future curve).
+     The K ceiling line is always visible; the peak-growth point marker on the
+     curve appears only once the current point has reached K/2.
+  */
+  function xScale(t) {
+    return xGeo.padL + (t / timelineTMax) * (xGeo.w - xGeo.padL - xGeo.padR);
+  }
+  function yScale(n) {
+    return (xGeo.h - xGeo.padB) - (n / (K * 1.08)) * (xGeo.h - xGeo.padT - xGeo.padB);
+  }
+
+  function drawSCurve() {
+    var ctx = xctx, w = xGeo.w, h = xGeo.h;
+    ctx.clearRect(0, 0, w, h);
+    var L = xGeo.padL, R = w - xGeo.padR, T = xGeo.padT, B = h - xGeo.padB;
+
+    // 纵轴上限固定为 K 的 1.08 倍（不随 N 浮动，否则参考线会漂移）
+    var top = K * 1.08;
+
+    // axes
+    ctx.strokeStyle = CSS.line;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(L + .5, T); ctx.lineTo(L + .5, B + .5); ctx.lineTo(R, B + .5);
+    ctx.stroke();
+
+    // grid + y ticks
+    ctx.font = "11px -apple-system, 'Microsoft YaHei', sans-serif";
+    ctx.fillStyle = CSS.ink3;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    var yTicks = 4;
+    for (var i = 0; i <= yTicks; i++) {
+      var nv = top * i / yTicks;
+      var y = yScale(nv);
+      ctx.strokeStyle = CSS.lineSoft;
+      ctx.beginPath(); ctx.moveTo(L, y + .5); ctx.lineTo(R, y + .5); ctx.stroke();
+      ctx.fillText(Math.round(nv), L - 7, y);
+    }
+
+    // 当前时刻在横轴上的位置（参考线只画到这里）
+    var tNow = Math.max(0, Math.min(timelineTMax, tSim));
+    var xNow = xScale(tNow);
+
+    // —— K 参考线（环境承载力上限）：始终显示 ——
+    var yK = yScale(K);
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = "rgba(216,90,48,0.9)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(L, yK + .5);
+    ctx.lineTo(R, yK + .5);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = CSS.coral;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "11px -apple-system, 'Microsoft YaHei', sans-serif";
+    ctx.fillText("K = " + Math.round(K), L + 5, yK - 6);
+
+    // —— 「最大增速点」：不随曲线移动，只在「当前时刻」点到达 K/2 之后才显示 ——
+    // K/2 是 dN/dt = rK/4（最大增速）所在的位置，所以这就是曲线上增速最大的那个定点。
+    // 显示条件：当前 N 已达到 K/2；标记固定在 (t_half, K/2)，不跟着当前点跑，也不加标签。
+    var reachedPeak = N >= K / 2;
+
+    // —— 已走过的轨迹（不画未来） ——
+    if (history.length > 1) {
+      // 面积填充，增强“已发生”的体量感
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(xScale(history[0].t), yScale(0));
+      for (var a = 0; a < history.length; a++) {
+        ctx.lineTo(xScale(history[a].t), yScale(history[a].n));
+      }
+      ctx.lineTo(xScale(history[history.length - 1].t), yScale(0));
+      ctx.closePath();
+      var ag = ctx.createLinearGradient(0, T, 0, B);
+      ag.addColorStop(0, "rgba(55,138,221,0.16)");
+      ag.addColorStop(1, "rgba(55,138,221,0.02)");
+      ctx.fillStyle = ag;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.strokeStyle = CSS.blue;
+      ctx.lineWidth = 2.2;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      for (var j = 0; j < history.length; j++) {
+        var hp = history[j];
+        var hx = xScale(hp.t), hy = yScale(hp.n);
+        if (j === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+      }
+      ctx.stroke();
+
+      // 当前点 + 到横轴的引线
+      var last = history[history.length - 1];
+      var cx = xScale(last.t), cy = yScale(last.n);
+      ctx.save();
+      ctx.setLineDash([2, 3]);
+      ctx.strokeStyle = "rgba(29,158,117,0.45)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, B + .5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(L + .5, cy); ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = "rgba(29,158,117,0.18)";
+      ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = CSS.teal;
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+
+      // 当前 N 值标注
+      ctx.font = "500 11.5px -apple-system, 'Microsoft YaHei', sans-serif";
+      ctx.fillStyle = CSS.teal;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      var lblX = Math.min(cx + 9, R - 46);
+      ctx.fillText("N=" + Math.round(last.n), lblX, cy - 4);
+    }
+
+    // —— 最大增速点（固定不动，当前点到达 K/2 之后才显示） ——
+    // 位置 = 曲线上的 (t_half, K/2)，即 dN/dt 取到峰值 rK/4 的那个定点。不加标签。
+    if (reachedPeak) {
+      var halfT = computeHalfTime();
+      var px0 = xScale(halfT), py0 = yScale(K / 2);
+      ctx.save();
+      // 外圈柔光
+      ctx.fillStyle = "rgba(186,117,23,0.18)";
+      ctx.beginPath(); ctx.arc(px0, py0, 8, 0, Math.PI * 2); ctx.fill();
+      // 圆环
+      ctx.strokeStyle = CSS.amber;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.arc(px0, py0, 4.6, 0, Math.PI * 2); ctx.stroke();
+      // 中心实心点
+      ctx.fillStyle = CSS.amber;
+      ctx.beginPath(); ctx.arc(px0, py0, 2.1, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // 横轴已走到的位置标记
+    ctx.save();
+    ctx.strokeStyle = "rgba(0,0,0,0.18)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xNow + .5, B + .5);
+    ctx.lineTo(xNow + .5, B + 5.5);
+    ctx.stroke();
+    ctx.restore();
+
+    // x label
+    ctx.fillStyle = CSS.ink3;
+    ctx.font = "11px -apple-system, 'Microsoft YaHei', sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText("t", R - 2, B - 8);
+  }
+
+  /* ---------- drawing: timeline ---------- */
+  function drawTimeline() {
+    var ctx = tctx, w = tGeo.w, h = tGeo.h;
+    ctx.clearRect(0, 0, w, h);
+    var L = tGeo.padL, R = w - tGeo.padR, T = tGeo.padT, B = h - tGeo.padB;
+    var midY = (T + B) / 2;
+    var frac = timelineTMax > 0 ? Math.max(0, Math.min(1, tSim / timelineTMax)) : 0;
+
+    // track
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(0,0,0,0.10)";
+    ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(L, midY); ctx.lineTo(R, midY); ctx.stroke();
+
+    // 已模拟区间
+    ctx.strokeStyle = CSS.blue;
+    ctx.lineWidth = 8;
+    if (frac > 0.0005) {
+      ctx.beginPath(); ctx.moveTo(L, midY); ctx.lineTo(L + frac * (R - L), midY); ctx.stroke();
+    }
+
+    // tick marks + time labels
+    ctx.font = "11px -apple-system, 'Microsoft YaHei', sans-serif";
+    ctx.textAlign = "center";
+    var nTicks = 10;
+    for (var i = 0; i <= nTicks; i++) {
+      var tx = L + (i / nTicks) * (R - L);
+      var major = i % 2 === 0;
+      ctx.strokeStyle = major ? "rgba(0,0,0,0.22)" : "rgba(0,0,0,0.14)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(tx + .5, midY + 7);
+      ctx.lineTo(tx + .5, midY + (major ? 14 : 11));
+      ctx.stroke();
+      if (major) {
+        ctx.fillStyle = CSS.ink3;
+        ctx.textBaseline = "top";
+        ctx.fillText(Math.round(timelineTMax * i / nTicks), tx, midY + 17);
+      }
+    }
+
+    ctx.save();
+    ctx.setLineDash([]);
+
+    // 稳定后的续跑区段（T_STABLE → T_END）底色
+    if (T_STABLE < timelineTMax && T_END > T_STABLE) {
+      var stX = L + (T_STABLE / timelineTMax) * (R - L);
+      var enX = L + (T_END / timelineTMax) * (R - L);
+      ctx.fillStyle = "rgba(216,90,48,0.06)";
+      ctx.fillRect(stX, midY - 5, Math.max(0, enX - stX), 10);
+    }
+
+    // K/2 最大增速时刻
+    var halfT = computeHalfTime();
+    ctx.font = "10.5px -apple-system, 'Microsoft YaHei', sans-serif";
+    if (halfT > 0 && halfT < timelineTMax) {
+      var hx = L + (halfT / timelineTMax) * (R - L);
+      ctx.strokeStyle = "rgba(186,117,23,0.95)";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(hx, T + 2); ctx.lineTo(hx, B - 2); ctx.stroke();
+      ctx.fillStyle = CSS.amber;
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText("peak growth", hx, B + 3);
+    }
+
+    // 趋于稳定时刻
+    if (T_STABLE < timelineTMax) {
+      var sx = L + (T_STABLE / timelineTMax) * (R - L);
+      ctx.strokeStyle = "rgba(216,90,48,0.9)";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(sx, T + 2); ctx.lineTo(sx, B - 2); ctx.stroke();
+      ctx.fillStyle = CSS.coral;
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText("plateau", sx, B + 3);
+    }
+
+    // 结束时刻
+    if (T_END > 0 && T_END < timelineTMax) {
+      var ex = L + (T_END / timelineTMax) * (R - L);
+      ctx.strokeStyle = "rgba(0,0,0,0.4)";
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(ex, T + 2); ctx.lineTo(ex, B - 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = CSS.ink3;
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText("end", ex, B + 3);
+    }
+    ctx.restore();
+
+    // current handle
+    var px = L + frac * (R - L);
+    ctx.strokeStyle = "rgba(29,158,117,0.35)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(px, T - 2); ctx.lineTo(px, B + 2); ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = CSS.teal;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(px, midY, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = CSS.teal;
+    ctx.beginPath(); ctx.arc(px, midY, 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function computeHalfTime() {
+    // 解 N(t) = K/2  →  e^(−rt) = N0/(K−N0)  →  t = ln((K−N0)/N0)/r
+    if (N0 <= 0 || N0 >= K) return 0;
+    var tt = Math.log((K - N0) / N0) / r;
+    return tt > 0 ? tt : 0;
+  }
+
+  /* ---------- ui update ---------- */
+  function phaseOf(n) {
+    if (n >= K * carryFactor) {
+      return ["Dynamic plateau", "N approaches K, dN/dt ≈ 0 — the population levels off near carrying capacity.", "#1d9e75"];
+    }
+    if (n < K / 2) {
+      return ["Accelerating", "N < K/2, little resistance: (K−N)/K is near 1, so growth is nearly exponential.", "#185fa5"];
+    }
+    if (Math.abs(n - K / 2) < K * 0.03) {
+      return ["Inflection", "N ≈ K/2, dN/dt peaks at rK/4, and the curve flips from concave up to concave down.", "#ba7517"];
+    }
+    return ["Decelerating", "N > K/2, resistance rises: growth rate declines but stays positive.", "#d85a30"];
+  }
+
+  function updateReadouts() {
+    var rem = Math.max(0, K - N);
+    var rate = dNdt(N, K, r);
+    var resist = K > 0 ? (K - N) / K : 0;
+
+    $("mNval").textContent = Math.round(N);
+    $("mRemval").textContent = Math.round(rem);
+    $("mdNval").textContent = rate.toFixed(2);
+    $("mResval").innerHTML = Math.round(resist * 100) + "<small>%</small>";
+    $("mtval").textContent = tSim.toFixed(1);
+    $("tlNow").textContent = "t = " + tSim.toFixed(1);
+
+    var ph = phaseOf(N);
+    $("mbPhase").textContent = ph[0];
+    $("mbPhase").style.color = ph[2] || "#2c2c2a";
+    $("phaseText").textContent = ph[1];
+
+    var tn = $("tlNow");
+    tn.style.color = finished ? "#1d9e75" : (running ? "#185fa5" : "#5f5e5a");
+
+    // 状态文案区分「稳定」与「稳定后续跑」
+    var tag = $("statusTag");
+    if (finished) { tag.textContent = "Finished"; }
+    else if (running && tSim >= T_STABLE) { tag.textContent = "Running past plateau"; }
+    else if (running) { tag.textContent = "Running"; }
+    else if (tSim > 0) { tag.textContent = "Paused"; }
+    else { tag.textContent = "Not started"; }
+    tag.style.color = (running && tSim >= T_STABLE) ? "#d85a30" : "";
+  }
+
+  function updateLabels() {
+    $("kVal").textContent = Math.round(K);
+    $("rVal").textContent = r.toFixed(3);
+    $("n0Val").textContent = Math.round(N0);
+    $("tlStart").textContent = "t = 0";
+    $("tlSpan").textContent = tlSpanText(timelineTMax.toFixed(0),
+      computeHalfTime().toFixed(1), T_STABLE.toFixed(1), T_END.toFixed(1));
+    $("tlEnd").textContent = "t = " + timelineTMax.toFixed(0);
+    $("tlHint").textContent = tlHintText(T_STABLE.toFixed(0), T_END.toFixed(0));
+  }
+
+  function recompute(fullReset) {
+    var oldEnd = T_END;
+    syncTimeConstants();
+    if (fullReset) {
+      tSim = 0; N = N0; history = []; dots = [];
+      finished = false;
+      rebuildDots();
+      pushHistory();
+    } else {
+      // 参数变化：保持“已走过的进度比例”，把时间重新映射到新时间轴上，
+      // 避免 tSim 越过新的 T_END 从而跳到终点。
+      var prog = 0;
+      if (oldEnd > 0) prog = Math.max(0, Math.min(1, tSim / oldEnd));
+      tSim = prog * T_END;
+      N = Math.max(0.5, logisticN(N0, tSim, K, r));
+      finished = (tSim >= T_END);
+      history = [];
+      var rs = 90;
+      for (var i = 0; i <= rs; i++) {
+        var tt = tSim * i / rs;
+        history.push({ t: tt, n: logisticN(N0, tt, K, r) });
+      }
+      rebuildDots();
+    }
+    updateLabels();
+    drawSCurve();
+    drawTimeline();
+    updateReadouts();
+  }
+
+  function pushHistory() {
+    var last = history[history.length - 1];
+    if (!last || tSim - last.t > 1e-4) history.push({ t: tSim, n: N });
+    else { last.t = tSim; last.n = N; }
+    if (history.length > 4000) history.splice(0, 1000);
+  }
+
+  /* ---------- loop ---------- */
+  // 让整段模拟（0 → 趋于稳定）约 20 秒放完，与 K/r 无关
+  var RUN_SECONDS = 20;
+  function frame(now) {
+    if (!running) return;
+    if (!lastFrame) lastFrame = now;
+    var realDt = Math.min(0.05, (now - lastFrame) / 1000);
+    lastFrame = now;
+
+    var dt = realDt * (T_END / RUN_SECONDS) * speed;
+    tSim += dt;
+    if (tSim > T_END) tSim = T_END;
+    N = logisticN(N0, tSim, K, r);
+    rebuildDots();
+    pushHistory();
+
+    drawStage(realDt);
+    drawSCurve();
+    drawTimeline();
+    updateReadouts();
+
+    if (tSim >= T_END) {
+      N = logisticN(N0, T_END, K, r);
+      running = false;
+      finished = true;
+      drawStage(realDt); drawSCurve(); drawTimeline(); updateReadouts();
+      syncButtons();
+      return;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- buttons ---------- */
+  function syncButtons() {
+    $("btnStart").disabled = running;
+    $("btnPause").disabled = !running;
+    $("btnStart").textContent = (finished || tSim > 0) ? "Continue" : "Start";
+  }
+
+  function start() {
+    if (finished) return;
+    running = true;
+    lastFrame = 0;
+    syncButtons();
+    requestAnimationFrame(frame);
+  }
+  function pause() {
+    running = false;
+    lastFrame = 0;
+    syncButtons();
+    updateReadouts();
+  }
+  /* ---------- buttons ---------- */
+  function syncButtons() {
+    $("btnStart").disabled = running;
+    $("btnPause").disabled = !running;
+    $("btnStart").textContent = (finished || tSim > 0) ? "Continue" : "Start";
+  }
+
+  function start() {
+    if (finished) return;
+    running = true;
+    lastFrame = 0;
+    syncButtons();
+    requestAnimationFrame(frame);
+  }
+  function pause() {
+    running = false;
+    lastFrame = 0;
+    syncButtons();
+    updateReadouts();
+  }
+  // 重置：回到 t=0、N=N0、圆点清空重来（不清除 K / r / N0 设定）
+  function reset() {
+    running = false;
+    finished = false;
+    lastFrame = 0;
+    tSim = 0;
+    N = Math.min(N0, K);
+    dots = [];
+    history = [];
+    syncTimeConstants();
+    rebuildDots();
+    pushHistory();
+    updateLabels();
+    drawStage(0); drawSCurve(); drawTimeline(); updateReadouts();
+    syncButtons();
+  }
+
+  $("btnStart").addEventListener("click", start);
+  $("btnPause").addEventListener("click", pause);
+  $("btnReset").addEventListener("click", reset);
+
+  /* ---------- 倍速控制 ---------- */
+  $("speedBtns").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-sp]");
+    if (!b) return;
+    speed = parseFloat(b.getAttribute("data-sp")) || 1;
+    var all = this.querySelectorAll("button[data-sp]");
+    for (var i = 0; i < all.length; i++) {
+      all[i].classList.toggle("on", all[i] === b);
+    }
+  });
+
+  /* ---------- sliders ---------- */
+  $("kSlider").addEventListener("input", function () {
+    K = +this.value;
+    if (N0 > K) { N0 = Math.max(1, Math.round(K * 0.05)); $("n0Slider").value = N0; }
+    recompute(!running && tSim === 0);
+  });
+  $("n0Slider").addEventListener("input", function () {
+    N0 = +this.value;
+    recompute(true);
+  });
+  $("rSlider").addEventListener("input", function () {
+    r = +this.value;
+    recompute(false);
+  });
+
+  /* ---------- timeline scrubbing ---------- */
+  var scrubbing = false;
+  var wasRunning = false;
+
+  function scrubAt(clientX) {
+    var rect = timeline.getBoundingClientRect();
+    var L = tGeo.padL, R = rect.width - tGeo.padR;
+    var x = clientX - rect.left;
+    var frac = Math.max(0, Math.min(1, (x - L) / (R - L)));
+    tSim = frac * timelineTMax;
+    N = logisticN(N0, tSim, K, r);
+    history = [];
+    var rs = 90;
+    for (var i = 0; i <= rs; i++) {
+      var tt = tSim * i / rs;
+      history.push({ t: tt, n: logisticN(N0, tt, K, r) });
+    }
+    rebuildDots();
+    finished = (tSim >= T_END);
+    drawStage(0); drawSCurve(); drawTimeline(); updateReadouts(); syncButtons();
+  }
+
+  timeline.addEventListener("pointerdown", function (e) {
+    scrubbing = true;
+    wasRunning = running;
+    if (running) { running = false; lastFrame = 0; }
+    timeline.classList.add("dragging");
+    try { timeline.setPointerCapture(e.pointerId); } catch (err) {}
+    scrubAt(e.clientX);
+    e.preventDefault();
+  });
+  timeline.addEventListener("pointermove", function (e) {
+    if (scrubbing) { scrubAt(e.clientX); e.preventDefault(); }
+  });
+  function endScrub(e) {
+    if (!scrubbing) return;
+    scrubbing = false;
+    timeline.classList.remove("dragging");
+    try { timeline.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (wasRunning && !finished) { wasRunning = false; start(); }
+    else { wasRunning = false; syncButtons(); }
+  }
+  timeline.addEventListener("pointerup", endScrub);
+  timeline.addEventListener("pointercancel", endScrub);
+
+  /* ---------- rewind to start ---------- */
+  $("btnRewind").addEventListener("click", function () {
+    running = false; finished = false; lastFrame = 0;
+    tSim = 0;
+    N = Math.min(N0, K);
+    history = []; dots = [];
+    syncTimeConstants();
+    rebuildDots();
+    pushHistory();
+    updateLabels();
+    drawStage(0); drawSCurve(); drawTimeline(); updateReadouts(); syncButtons();
+  });
+
+  /* ---------- wheel over stage: nudge K ---------- */
+  stage.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    var delta = e.deltaY > 0 ? -5 : 5;
+    K = Math.max(20, Math.min(400, Math.round(K + delta)));
+    $("kSlider").value = K;
+    if (N0 > K) { N0 = Math.max(1, Math.round(K * 0.05)); $("n0Slider").value = N0; }
+    recompute(!running && tSim === 0);
+  }, { passive: false });
+
+  /* ---------- init ---------- */
+  window.addEventListener("resize", function () { resizeAll(); });
+
+  function boot() {
+    // 让整页（头部 + 三栏 + 参数条 + 固定时间轴）在一屏内放下
+    var vh = window.innerHeight || 900;
+    var dockH = Math.ceil(document.querySelector(".timeline-dock").getBoundingClientRect().height) || 250;
+    var avail = Math.max(400, vh - dockH - 92);
+    stageH = Math.max(190, Math.min(330, Math.round(avail * 0.72)));
+    xGeo.h = stageH;
+    resizeAll();
+    recompute(true);
+    syncButtons();
+  }
+
+  boot();
+  window.addEventListener("load", function () { resizeAll(); });
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { resizeAll(); });
+  }
+})();
+</script>
+</body>
+</html>
